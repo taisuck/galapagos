@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Galapagos CMS</title>
+    <link rel="stylesheet" href="vendor/bootstrap.min.css" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <script src="vendor/bootstrap.bundle.min.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "preact": "./vendor/preact.module.js",
+          "preact/hooks": "./vendor/preact-hooks.module.js",
+          "htm": "./vendor/htm.module.js",
+          "htm/preact": "./vendor/htm-preact.module.js",
+          "@preact/signals-core": "./vendor/signals-core.module.js",
+          "@preact/signals": "./vendor/signals.module.js"
+        }
+      }
+    </script>
+    <script type="module" src="main.js"></script>
+  </body>
+</html>
