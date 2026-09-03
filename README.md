@@ -5,7 +5,7 @@ preact + javasript, lodash, bootstrap
 
 # 요구사항
 
-폐쇠망에서 수행할 CMS 기능을 구현해야한다.
+폐쇄망에서 수행할 CMS 기능을 구현해야한다.
 
 - 사용자 권한 관리 기능
 - 콘텐츠 편집 기능
