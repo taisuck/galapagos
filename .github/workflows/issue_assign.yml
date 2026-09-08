@@ -1,0 +1,42 @@
+name: Create Branch on Issue Assign
+
+on:
+  issues:
+    types: [assigned]
+
+permissions:
+  contents: write
+
+jobs:
+  create-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine branch name
+        id: branch
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+        run: |
+          SAFE_TITLE=$(echo "$ISSUE_TITLE" \
+            | tr '[:space:]' '_' \
+            | sed -e 's/~//g' -e 's/\^//g' -e 's/://g' -e 's/?//g' \
+                  -e 's/\*//g' -e 's/\[//g' -e 's/\]//g' -e 's/\\\\//g' \
+                  -e 's/_\{2,\}/_/g' -e 's/^_//' -e 's/_$//')
+          BRANCH_NAME="feature_${ISSUE_NUMBER}_${SAFE_TITLE}"
+          echo "name=$BRANCH_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push branch
+        env:
+          BRANCH_NAME: ${{ steps.branch.outputs.name }}
+        run: |
+          if git ls-remote --exit-code --heads origin "$BRANCH_NAME" >/dev/null 2>&1; then
+            echo "Branch $BRANCH_NAME already exists, skipping."
+            exit 0
+          fi
+          git checkout -b "$BRANCH_NAME"
+          git push origin "$BRANCH_NAME"
