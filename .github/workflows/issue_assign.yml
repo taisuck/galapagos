@@ -6,16 +6,12 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
   create-branch:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
       - name: Determine branch name
         id: branch
         env:
@@ -30,13 +26,51 @@ jobs:
           BRANCH_NAME="feature_${ISSUE_NUMBER}_${SAFE_TITLE}"
           echo "name=$BRANCH_NAME" >> "$GITHUB_OUTPUT"
 
-      - name: Create and push branch
+      - name: Check for existing branch
+        id: exists
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BRANCH_NAME: ${{ steps.branch.outputs.name }}
         run: |
-          if git ls-remote --exit-code --heads origin "$BRANCH_NAME" >/dev/null 2>&1; then
-            echo "Branch $BRANCH_NAME already exists, skipping."
-            exit 0
+          if gh api "repos/${{ github.repository }}/branches/$BRANCH_NAME" >/dev/null 2>&1; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
           fi
-          git checkout -b "$BRANCH_NAME"
-          git push origin "$BRANCH_NAME"
+
+      - name: Get default branch HEAD sha
+        if: steps.exists.outputs.found == 'false'
+        id: sha
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SHA=$(gh api "repos/${{ github.repository }}/commits/${{ github.event.repository.default_branch }}" --jq .sha)
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      # Uses the createLinkedBranch GraphQL mutation instead of a plain
+      # `git push`, so the new branch shows up under the issue's own
+      # "Development" section, not just as a bare ref in the repo.
+      - name: Create branch linked to the issue
+        if: steps.exists.outputs.found == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH_NAME: ${{ steps.branch.outputs.name }}
+          ISSUE_NODE_ID: ${{ github.event.issue.node_id }}
+          OID: ${{ steps.sha.outputs.sha }}
+        run: |
+          gh api graphql -f query='
+            mutation($issueId: ID!, $oid: GitObjectID!, $name: String!) {
+              createLinkedBranch(input: {
+                issueId: $issueId
+                oid: $oid
+                name: $name
+              }) {
+                linkedBranch {
+                  id
+                  ref { name }
+                }
+              }
+            }' \
+            -f issueId="$ISSUE_NODE_ID" \
+            -f oid="$OID" \
+            -f name="$BRANCH_NAME"
